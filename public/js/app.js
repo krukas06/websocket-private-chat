@@ -1937,21 +1937,37 @@ __webpack_require__.r(__webpack_exports__);
 //
 //
 //
+//
 /* harmony default export */ __webpack_exports__["default"] = ({
   data: function data() {
     return {
       messages: [],
-      textMessage: ''
+      textMessage: '',
+      isActive: false,
+      typingTimer: false
     };
   },
-  props: ['room'],
+  props: ['room', 'user'],
+  computed: {
+    channel: function channel() {
+      return window.Echo.private('room.' + this.room.id);
+    }
+  },
   mounted: function mounted() {
     var _this = this;
 
-    window.Echo.private('room.' + this.room.id).listen('PrivateChat', function (_ref) {
+    this.channel.listen('PrivateChat', function (_ref) {
       var data = _ref.data;
 
       _this.messages.push(data.body);
+
+      _this.isActive = false;
+    }).listenForWhisper('typing', function (e) {
+      _this.isActive = e;
+      if (_this.typingTimer) clearTimeout(_this.typingTimer);
+      _this.typingTimer = setTimeout(function () {
+        _this.isActive = false;
+      }, 2000);
     });
   },
   methods: {
@@ -1962,6 +1978,11 @@ __webpack_require__.r(__webpack_exports__);
       });
       this.messages.push(this.textMessage);
       this.textMessage = '';
+    },
+    ActionUser: function ActionUser() {
+      this.channel.whisper('typing', {
+        name: this.user.name
+      });
     }
   }
 });
@@ -46693,6 +46714,7 @@ var render = function() {
               }
               return _vm.sendMessage($event)
             },
+            keydown: _vm.ActionUser,
             input: function($event) {
               if ($event.target.composing) {
                 return
@@ -46700,7 +46722,13 @@ var render = function() {
               _vm.textMessage = $event.target.value
             }
           }
-        })
+        }),
+        _vm._v(" "),
+        _vm.isActive
+          ? _c("span", [
+              _vm._v(_vm._s(_vm.isActive.name) + " набирает сообщение...")
+            ])
+          : _vm._e()
       ])
     ])
   ])

@@ -4,7 +4,8 @@
             <div class="col-sm-12">
                 <textarea class="form-control" rows="10" readonly="">{{messages.join('\n')}}</textarea>
                 <hr>
-                <input type="text" class="form-control" v-model="textMessage" @keyup.enter="sendMessage">
+                <input type="text" class="form-control" v-model="textMessage" @keyup.enter="sendMessage" @keydown="ActionUser">
+                <span v-if="isActive">{{isActive.name}} набирает сообщение...</span>
             </div>
         </div>
     </div>
@@ -15,16 +16,35 @@
         data(){
             return{
                 messages:[],
-                textMessage: ''
+                textMessage: '',
+                isActive: false,
+                typingTimer: false
             }
         },
 
-        props: ['room'],
+        props: ['room', 'user'],
+
+        computed: {
+
+            channel(){
+                return window.Echo.private('room.' + this.room.id);
+            }
+        },
 
         mounted() {
-            window.Echo.private('room.' + this.room.id)
+            this.channel
                 .listen('PrivateChat', ({data})=>{
-                    this.messages.push(data.body)
+                    this.messages.push(data.body);
+                    this.isActive = false;
+                })
+                .listenForWhisper('typing', (e)=>{
+                    this.isActive = e;
+
+                    if(this.typingTimer) clearTimeout(this.typingTimer);
+
+                    this.typingTimer = setTimeout(()=>{
+                        this.isActive = false;
+                    }, 2000);
                 });
         },
 
@@ -34,6 +54,13 @@
 
                 this.messages.push(this.textMessage);
                 this.textMessage = '';
+            },
+
+            ActionUser(){
+                this.channel.
+                    whisper('typing', {
+                    name:this.user.name
+                });
             }
         }
     }
